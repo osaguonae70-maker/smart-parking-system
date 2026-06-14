@@ -3,6 +3,8 @@ import random
 import re
 import string
 import ipaddress
+import json
+import urllib.request
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, send_from_directory
 from flask_login import LoginManager, login_required, current_user
@@ -63,6 +65,35 @@ if CORS is not None:
     CORS(app, resources={r"/api/*": {"origins": portal_origins}})
 
 admin_local_only = os.environ.get('ADMIN_LOCAL_ONLY', '0').strip() not in {'0', 'false', 'False', 'no', 'No'}
+
+# #region debug-point A:report
+def _debug_report(hypothesis_id, location, msg, data=None, run_id='pre-fix'):
+    _p = '.dbg/site-bad-responses.env'
+    _u, _s = 'http://127.0.0.1:7777/event', 'site-bad-responses'
+    try:
+        with open(_p, 'r', encoding='utf-8') as _f:
+            _c = _f.read().splitlines()
+        _u = next((line.split('=', 1)[1] for line in _c if line.startswith('DEBUG_SERVER_URL=')), _u)
+        _s = next((line.split('=', 1)[1] for line in _c if line.startswith('DEBUG_SESSION_ID=')), _s)
+        urllib.request.urlopen(
+            urllib.request.Request(
+                _u,
+                data=json.dumps({
+                    'sessionId': _s,
+                    'runId': run_id,
+                    'hypothesisId': hypothesis_id,
+                    'location': location,
+                    'msg': f'[DEBUG] {msg}',
+                    'data': data or {},
+                    'ts': int(datetime.utcnow().timestamp() * 1000),
+                }).encode(),
+                headers={'Content-Type': 'application/json'},
+            ),
+            timeout=1,
+        ).read()
+    except Exception:
+        pass
+# #endregion
 
 def get_client_ip():
     forwarded = request.headers.get('X-Forwarded-For')
@@ -542,6 +573,12 @@ def maintain_simulation_zone():
     path = request.path or ''
     if path.startswith('/static/'):
         return
+    # #region debug-point B:before-request
+    _debug_report('B', 'app.py:maintain_simulation_zone', 'before_request gate entered', {
+        'path': path,
+        'database_bootstrap_complete': database_bootstrap_complete,
+    })
+    # #endregion
     ensure_database_ready()
     maintain_simulation_occupancy()
 
@@ -641,15 +678,34 @@ def checkout_slot(slot, payment_method=None, exit_time=None, refill_simulation=F
 def ensure_database_ready():
     global database_bootstrap_complete
     if database_bootstrap_complete:
+        # #region debug-point C:bootstrap-skip
+        _debug_report('C', 'app.py:ensure_database_ready', 'bootstrap already marked complete', {
+            'database_bootstrap_complete': database_bootstrap_complete,
+        })
+        # #endregion
         return
 
     with app.app_context():
         inspector = inspect(db.engine)
         required_tables = ('slot', 'payment', 'user', 'vehicle_registry')
-        if all(inspector.has_table(table_name) for table_name in required_tables):
+        table_state = {table_name: inspector.has_table(table_name) for table_name in required_tables}
+        # #region debug-point D:table-check
+        _debug_report('D', 'app.py:ensure_database_ready', 'checked required tables', {
+            'required_tables': table_state,
+        })
+        # #endregion
+        if all(table_state.values()):
             database_bootstrap_complete = True
+            # #region debug-point E:bootstrap-marked
+            _debug_report('E', 'app.py:ensure_database_ready', 'all required tables already exist', {
+                'required_tables': table_state,
+            })
+            # #endregion
             return
 
+    # #region debug-point F:initdb-call
+    _debug_report('F', 'app.py:ensure_database_ready', 'calling init_db because required tables are missing')
+    # #endregion
     init_db()
 
 def get_maintenance_figures():
@@ -1271,6 +1327,11 @@ app.register_blueprint(main)
 def init_db():
     global database_bootstrap_complete
     with app.app_context():
+        # #region debug-point G:initdb-enter
+        _debug_report('G', 'app.py:init_db', 'entered init_db', {
+            'database_uri_prefix': app.config['SQLALCHEMY_DATABASE_URI'].split(':', 1)[0],
+        })
+        # #endregion
         db.create_all()
         if app.config['SQLALCHEMY_DATABASE_URI'].startswith('sqlite'):
             try:
@@ -1331,6 +1392,14 @@ def init_db():
             ))
             db.session.commit()
         database_bootstrap_complete = True
+        # #region debug-point H:initdb-exit
+        _debug_report('H', 'app.py:init_db', 'completed init_db', {
+            'slot_count': Slot.query.count(),
+            'user_count': User.query.count(),
+            'payment_count': Payment.query.count(),
+            'database_bootstrap_complete': database_bootstrap_complete,
+        })
+        # #endregion
 
 if __name__ == '__main__':
     debug = os.environ.get('FLASK_DEBUG', '1').strip().lower() in {'1', 'true', 'yes', 'on'}
