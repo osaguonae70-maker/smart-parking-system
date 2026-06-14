@@ -20,7 +20,7 @@ from werkzeug.security import generate_password_hash
 import pandas as pd
 from io import BytesIO
 from functools import wraps
-from sqlalchemy import text, case
+from sqlalchemy import text, case, inspect
 
 if load_dotenv is not None:
     load_dotenv()
@@ -54,6 +54,7 @@ if not database_url.startswith('sqlite'):
     }
 
 db.init_app(app)
+database_bootstrap_complete = False
 portal_origin_env = os.environ.get('PORTAL_ORIGIN', '').strip()
 portal_origins = '*'
 if portal_origin_env:
@@ -541,6 +542,7 @@ def maintain_simulation_zone():
     path = request.path or ''
     if path.startswith('/static/'):
         return
+    ensure_database_ready()
     maintain_simulation_occupancy()
 
 def get_revenue_series(days=7):
@@ -635,6 +637,20 @@ def checkout_slot(slot, payment_method=None, exit_time=None, refill_simulation=F
         'replacement_vehicle': replacement.vehicle if replacement else None,
         'replacement_entry_time': replacement.entry_time.isoformat() if replacement and replacement.entry_time else None,
     }
+
+def ensure_database_ready():
+    global database_bootstrap_complete
+    if database_bootstrap_complete:
+        return
+
+    with app.app_context():
+        inspector = inspect(db.engine)
+        required_tables = ('slot', 'payment', 'user', 'vehicle_registry')
+        if all(inspector.has_table(table_name) for table_name in required_tables):
+            database_bootstrap_complete = True
+            return
+
+    init_db()
 
 def get_maintenance_figures():
     sensors_count = Slot.query.count()
@@ -1253,6 +1269,7 @@ app.register_blueprint(auth_blueprint)
 app.register_blueprint(main)
 
 def init_db():
+    global database_bootstrap_complete
     with app.app_context():
         db.create_all()
         if app.config['SQLALCHEMY_DATABASE_URI'].startswith('sqlite'):
@@ -1313,6 +1330,7 @@ def init_db():
                 payment_method='bank_transfer'
             ))
             db.session.commit()
+        database_bootstrap_complete = True
 
 if __name__ == '__main__':
     debug = os.environ.get('FLASK_DEBUG', '1').strip().lower() in {'1', 'true', 'yes', 'on'}
