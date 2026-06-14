@@ -1,7 +1,7 @@
 services:
   - type: web
     name: smart-parking-system
-    env: python
+    runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn wsgi:application
     autoDeploy: true
@@ -11,15 +11,8 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: smart-parking-db
-          property: connectionString
+        sync: false
       - key: FLASK_DEBUG
         value: "0"
       - key: ADMIN_LOCAL_ONLY
         value: "0"
-
-databases:
-  - name: smart-parking-db
-    databaseName: smart_parking
-    user: smart_parking_user

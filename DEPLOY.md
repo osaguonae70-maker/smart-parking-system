@@ -1,6 +1,6 @@
 # Deploy Guide
 
-This project is ready to run on `Render` with a managed `PostgreSQL` database.
+This project is ready to run on `Render` using an external `PostgreSQL` database such as `Neon`.
 
 ## 1. Install Git
 
@@ -48,7 +48,19 @@ Then push again:
 git push -u origin main
 ```
 
-## 3. Deploy on Render
+## 3. Create a Free External Database
+
+Recommended provider: `Neon`
+
+1. Sign in to https://neon.com/
+2. Create a new project
+3. Open the project dashboard
+4. Copy the connection string
+5. Keep it private. Do not commit it to the repository.
+
+This app accepts standard PostgreSQL URLs in `DATABASE_URL`.
+
+## 4. Deploy on Render
 
 1. Sign in to https://render.com/
 2. Click `New +`
@@ -56,19 +68,18 @@ git push -u origin main
 4. Select the GitHub repository:
    `osaguonae70-maker/smart-parking-system`
 5. Render will read `render.yaml`
-6. Confirm creation of:
-   - one web service
-   - one PostgreSQL database
-7. Click `Apply`
+6. Render will create one web service
+7. When prompted for `DATABASE_URL`, paste your Neon connection string
+8. Click `Apply`
 
-## 4. Render Settings Used
+## 5. Render Settings Used
 
 This project already includes:
 
 - `render.yaml`
 - `wsgi.py`
 - `requirements.txt`
-- PostgreSQL-ready database config in `app.py`
+- external PostgreSQL-ready database config in `app.py`
 
 Render will set:
 
@@ -77,7 +88,7 @@ Render will set:
 - `FLASK_DEBUG=0`
 - `ADMIN_LOCAL_ONLY=0`
 
-## 5. Local Development
+## 6. Local Development
 
 For local development, the project uses:
 
@@ -90,9 +101,18 @@ Run locally with:
 python app.py
 ```
 
-## 6. After Deployment
+## 7. After Deployment
 
 - Open the Render app URL
 - Visit `/portal` for the user portal
 - Visit `/admin` for the admin dashboard
 - Confirm the database is connected and the parking slots initialize correctly
+
+## 8. If You Already Started a Blueprint
+
+If Render previously tried to create a managed database and asked for card authorization:
+
+1. Cancel that pending blueprint or service creation
+2. Push the updated `render.yaml` in this repository
+3. Start a new `Blueprint` deploy from the same GitHub repo
+4. Enter the external `DATABASE_URL` when Render prompts for it

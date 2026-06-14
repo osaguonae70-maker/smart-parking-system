@@ -54,32 +54,32 @@ A full-featured real-time Smart Vehicle Parking System built with Flask, with su
 
 ## Render Deployment
 
-This project is ready for deployment on `Render` with a managed `PostgreSQL` database.
+This project is ready for deployment on `Render` with an external `PostgreSQL` database such as `Neon`.
 
 ### Files Added for Render
-- `render.yaml`: Creates one Python web service and one PostgreSQL database.
+- `render.yaml`: Creates one Python web service and prompts for an external `DATABASE_URL`.
 - `wsgi.py`: Runs the Flask app through `gunicorn` and initializes the database on startup.
 
 ### Environment Variables
 - `SECRET_KEY`: Flask secret key for sessions and login security.
-- `DATABASE_URL`: Provided automatically by Render from the PostgreSQL service.
+- `DATABASE_URL`: Paste your external PostgreSQL connection string in Render.
 - `FLASK_DEBUG=0`: Keeps the production server in non-debug mode.
 - `ADMIN_LOCAL_ONLY=0`: Allows the admin pages to work on the hosted deployment.
 
 ### Deploy Steps
 1. Push this project to GitHub.
-2. Sign in to [Render](https://render.com/).
-3. Choose **New +** then **Blueprint**.
-4. Select the GitHub repository that contains this project.
-5. Render will detect `render.yaml` and create:
-   - one web service named `smart-parking-system`
-   - one PostgreSQL database named `smart-parking-db`
-6. Click **Apply** to start the deployment.
-7. After deployment finishes, open the generated Render URL.
+2. Create a free PostgreSQL database at [Neon](https://neon.com/) or another provider and copy its connection string.
+3. Sign in to [Render](https://render.com/).
+4. Choose **New +** then **Blueprint**.
+5. Select the GitHub repository that contains this project.
+6. Render will detect `render.yaml` and create the web service `smart-parking-system`.
+7. When Render prompts for `DATABASE_URL`, paste the external PostgreSQL connection string.
+8. Click **Apply** to start the deployment.
+9. After deployment finishes, open the generated Render URL.
 
 ### Notes
 - The app still uses local `SQLite` automatically when `DATABASE_URL` is not set.
-- On Render, the app switches automatically to PostgreSQL using the provided connection string.
+- On Render, the app switches automatically to PostgreSQL using the provided external connection string.
 - `gunicorn` serves both the frontend templates and the Flask backend from one Render web service.
 
 ## Usage Guide
