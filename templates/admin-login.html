@@ -1,0 +1,39 @@
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+            <div class="bg-dark text-white p-4 text-center">
+                <i class="fas fa-user-shield fa-3x mb-3"></i>
+                <h3 class="fw-bold mb-0">Admin Access</h3>
+                <p class="small text-muted mb-0">Authorized personnel only</p>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <form action="{{ url_for('auth.admin_login') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Email Address</label>
+                        <input type="email" name="email" class="form-control" placeholder="admin@nsuk.edu.ng" required autofocus>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-dark w-100 py-3 rounded-3 fw-bold">
+                        Secure Login
+                    </button>
+                </form>
+                
+                <div class="mt-4 text-center">
+                    <a href="{{ url_for('main.index') }}" class="text-decoration-none small text-muted">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-light border mt-4 text-center small">
+            <i class="fas fa-info-circle me-1"></i> Default credentials: <strong>admin@nsuk.edu.ng</strong> / <strong>admin123</strong>
+        </div>
+    </div>
+</div>
+{% endblock %}

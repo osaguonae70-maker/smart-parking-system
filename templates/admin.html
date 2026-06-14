@@ -1,0 +1,1246 @@
+{% extends "layout.html" %}
+
+{% block content %}
+{% set page = admin_page|default('dashboard') %}
+<div class="offcanvas offcanvas-start" tabindex="-1" id="adminSidebar" aria-labelledby="adminSidebarLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title fw-bold" id="adminSidebarLabel">Admin Menu</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column p-0">
+        <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action {% if page == 'dashboard' %}active{% endif %}" href="{{ url_for('main.admin') }}">
+                <i class="fas fa-chart-pie me-2"></i>Dashboard
+            </a>
+            <a class="list-group-item list-group-item-action {% if page == 'revenue' %}active{% endif %}" href="{{ url_for('main.admin_revenue') }}">
+                <i class="fas fa-coins me-2"></i>Revenue
+            </a>
+            <a class="list-group-item list-group-item-action {% if page == 'chart' %}active{% endif %}" href="{{ url_for('main.admin_chart') }}">
+                <i class="fas fa-chart-line me-2"></i>Chart
+            </a>
+            <a class="list-group-item list-group-item-action {% if page == 'maintenance' %}active{% endif %}" href="{{ url_for('main.admin_maintenance') }}">
+                <i class="fas fa-screwdriver-wrench me-2"></i>Maintenance
+            </a>
+            <a class="list-group-item list-group-item-action {% if page == 'history' %}active{% endif %}" href="{{ url_for('main.admin_history') }}">
+                <i class="fas fa-clock-rotate-left me-2"></i>Parking History
+            </a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('main.portal') }}">
+                <i class="fas fa-car me-2"></i>Parking Portal
+            </a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('main.index') }}">
+                <i class="fas fa-house me-2"></i>Home
+            </a>
+        </div>
+        <div class="mt-auto p-3 border-top">
+            <div class="small text-muted mb-2">
+                {% if current_user.is_authenticated %}Signed in as {{ current_user.email or 'Admin' }}{% endif %}
+            </div>
+            <a class="btn btn-dark w-100 rounded-pill" href="{{ url_for('auth.logout') }}">
+                <i class="fas fa-right-from-bracket me-2"></i>Logout
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4 align-items-center">
+    <div class="col-12 col-md-6 mb-2 mb-md-0">
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-dark btn-sm rounded-circle" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-label="Open admin menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h2 class="display-6 fw-bold mb-0">
+                {% if page == 'dashboard' %}Admin Dashboard{% elif page == 'revenue' %}Revenue{% elif page == 'chart' %}Revenue Chart{% elif page == 'maintenance' %}Maintenance{% elif page == 'history' %}Parking History{% else %}Admin{% endif %}
+            </h2>
+        </div>
+    </div>
+    <div class="col-12 col-md-6">
+        <div class="d-flex justify-content-start justify-content-md-end align-items-center flex-wrap gap-2">
+            <a href="{{ url_for('main.portal') }}" class="btn btn-outline-primary btn-sm rounded-pill">
+                <i class="fas fa-external-link-alt me-1"></i> View Parking Portal
+            </a>
+            {% if page == 'dashboard' %}
+            <span id="admin-refresh-badge" class="badge bg-light text-muted fw-normal border">Auto-refresh: {{ refresh_seconds }}s</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if page == 'dashboard' %}
+<div class="row g-4 mb-4">
+    <div class="col-md-3 col-xl">
+        <div class="card bg-primary text-white p-3 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-1 opacity-75 small text-uppercase">Total Spaces</h6>
+            <div class="h3 fw-bold mb-0" id="admin-total-spaces">{{ total_spaces }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-xl">
+        <div class="card bg-success text-white p-3 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-1 opacity-75 small text-uppercase">Simulation Occupied</h6>
+            <div class="h3 fw-bold mb-0" id="admin-simulation-occupied">{{ simulation_occupied }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-xl">
+        <div class="card bg-info text-white p-3 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-1 opacity-75 small text-uppercase">Real User Occupied</h6>
+            <div class="h3 fw-bold mb-0" id="admin-real-user-occupied">{{ real_user_occupied }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-xl">
+        <div class="card bg-secondary text-white p-3 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-1 opacity-75 small text-uppercase">Available Spaces</h6>
+            <div class="h3 fw-bold mb-0" id="admin-total-available">{{ total_available_spaces }}</div>
+        </div>
+    </div>
+</div>
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card bg-dark text-white p-3 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-1 opacity-75 small text-uppercase">Simulation Revenue</h6>
+            <div class="h3 fw-bold mb-0" id="admin-simulation-revenue">₦{{ "%.2f"|format(simulation_revenue) }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark p-3 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-1 opacity-75 small text-uppercase">Real User Revenue</h6>
+            <div class="h3 fw-bold mb-0" id="admin-real-user-revenue">₦{{ "%.2f"|format(real_user_revenue) }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger text-white p-3 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-1 opacity-75 small text-uppercase">Combined Revenue</h6>
+            <div class="h3 fw-bold mb-0" id="admin-total-revenue">₦{{ "%.2f"|format(combined_revenue) }}</div>
+        </div>
+    </div>
+</div>
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 py-4">
+                <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-chart-pie me-2"></i>Zone Analytics</h5>
+            </div>
+            <div class="card-body pt-0">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="bg-light rounded-4 p-3 h-100">
+                            <div class="small text-muted text-uppercase mb-1">Simulation Occupancy Rate</div>
+                            <div class="h4 fw-bold mb-0" id="admin-simulation-rate">{{ "%.2f"|format(simulation_occupancy_rate) }}%</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-light rounded-4 p-3 h-100">
+                            <div class="small text-muted text-uppercase mb-1">Real User Occupancy Rate</div>
+                            <div class="h4 fw-bold mb-0" id="admin-real-rate">{{ "%.2f"|format(real_user_occupancy_rate) }}%</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-light rounded-4 p-3 h-100">
+                            <div class="small text-muted text-uppercase mb-1">Total Occupancy Rate</div>
+                            <div class="h4 fw-bold mb-0" id="admin-total-rate">{{ "%.2f"|format(total_occupancy_rate) }}%</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-light rounded-4 p-3 h-100">
+                            <div class="small text-muted text-uppercase mb-1">Vehicles Parked Today</div>
+                            <div class="h4 fw-bold mb-0" id="admin-vehicles-today">{{ vehicles_parked_today }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-light rounded-4 p-3 h-100">
+                            <div class="small text-muted text-uppercase mb-1">Total Revenue</div>
+                            <div class="h4 fw-bold mb-0" id="admin-total-revenue-analytics">₦{{ "%.2f"|format(total_revenue) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 py-4">
+                <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-rotate me-2"></i>Simulation Mode</h5>
+            </div>
+            <div class="card-body pt-0">
+                <div class="small text-muted mb-2">Simulation spaces stay active and refresh every {{ refresh_seconds }} seconds.</div>
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">Simulation Zone</span>
+                    <span class="fw-bold">S1-S20</span>
+                </div>
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">Real User Zone</span>
+                    <span class="fw-bold">R1-R30</span>
+                </div>
+                <div class="d-flex justify-content-between py-2">
+                    <span class="text-muted">Refresh Interval</span>
+                    <span class="fw-bold">{{ refresh_seconds }}s</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-4 mb-4">
+    <div class="col-lg-3">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 py-4">
+                <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-id-card me-2"></i>Registry Summary</h5>
+            </div>
+            <div class="card-body pt-0">
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">Registered Vehicles</span>
+                    <span class="fw-bold" id="registry-total">{{ vehicle_registry_analytics.total_registered }}</span>
+                </div>
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">Mapped LGA Prefixes</span>
+                    <span class="fw-bold" id="registry-mapped-count">{{ vehicle_registry_analytics.mapped_prefix_count }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-2">
+                    <span class="text-muted">Mapped Prefix Rate</span>
+                    <span class="fw-bold" id="registry-mapped-rate">{{ "%.2f"|format(vehicle_registry_analytics.mapped_prefix_rate) }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 py-4">
+                <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-map me-2"></i>Top States</h5>
+            </div>
+            <div class="card-body pt-0" id="registry-states">
+                {% for item in vehicle_registry_analytics.top_states %}
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">{{ item.state }}</span>
+                    <span class="fw-bold">{{ item.count }}</span>
+                </div>
+                {% else %}
+                <div class="text-muted small">No registration data yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 py-4">
+                <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-location-dot me-2"></i>Top LGAs</h5>
+            </div>
+            <div class="card-body pt-0" id="registry-lgas">
+                {% for item in vehicle_registry_analytics.top_local_governments %}
+                <div class="d-flex justify-content-between border-bottom py-2">
+                    <span class="text-muted">{{ item.local_government }}</span>
+                    <span class="fw-bold">{{ item.count }}</span>
+                </div>
+                {% else %}
+                <div class="text-muted small">No local government data yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 py-4">
+                <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-car-side me-2"></i>Fleet Trends</h5>
+            </div>
+            <div class="card-body pt-0">
+                <div class="small text-muted text-uppercase mb-2">Popular Models</div>
+                <div id="registry-models" class="mb-3">
+                    {% for item in vehicle_registry_analytics.top_models %}
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span class="text-muted">{{ item.model }}</span>
+                        <span class="fw-bold">{{ item.count }}</span>
+                    </div>
+                    {% else %}
+                    <div class="text-muted small">No model data yet.</div>
+                    {% endfor %}
+                </div>
+                <div class="small text-muted text-uppercase mb-2">Popular Colors</div>
+                <div id="registry-colors">
+                    {% for item in vehicle_registry_analytics.top_colors %}
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span class="text-muted">{{ item.color }}</span>
+                        <span class="fw-bold">{{ item.count }}</span>
+                    </div>
+                    {% else %}
+                    <div class="text-muted small">No color data yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-header bg-white border-bottom-0 py-4">
+        <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-list-ul me-2"></i>Parking Slot Management</h5>
+    </div>
+    <div class="card-body p-0 overflow-auto admin-table-container" style="max-height: 600px;">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light sticky-top">
+                <tr>
+                    <th class="ps-4">Slot</th>
+                    <th>Zone</th>
+                    <th>Status</th>
+                    <th>Plate Number</th>
+                    <th>Vehicle Model</th>
+                    <th>Color</th>
+                    <th>Year</th>
+                    <th>State of Registration</th>
+                    <th>Entry Time</th>
+                    <th>Duration</th>
+                    <th>Parking Fee</th>
+                    <th class="pe-4 text-end">Manual Actions</th>
+                </tr>
+            </thead>
+            <tbody id="admin-slots-table">
+                {% if slots is defined %}
+                {% for slot in slots %}
+                <tr id="slot-row-{{ slot.id }}">
+                    <td class="ps-4 fw-bold">{{ slot.slot_label }}</td>
+                    <td class="slot-zone"><span class="badge {% if slot.zone == 'simulation' %}bg-dark{% else %}bg-primary{% endif %}">{{ slot.zone_label }}</span></td>
+                    <td class="slot-status">
+                        {% if slot.vehicle %}
+                        <span class="badge bg-danger">Occupied</span>
+                        {% else %}
+                        <span class="badge bg-success">Available</span>
+                        {% endif %}
+                    </td>
+                    <td class="slot-plate"><span class="font-monospace">{{ slot.plate_number or '-' }}</span></td>
+                    <td class="slot-model">{{ slot.vehicle_record.model if slot.vehicle_record else '-' }}</td>
+                    <td class="slot-color">{{ slot.vehicle_record.color if slot.vehicle_record else '-' }}</td>
+                    <td class="slot-year">{{ slot.vehicle_record.year if slot.vehicle_record else '-' }}</td>
+                    <td class="slot-state">{{ slot.vehicle_record.state_of_registration if slot.vehicle_record else '-' }}</td>
+                    <td class="slot-time"><small class="text-muted">{{ slot.entry_time or '-' }}</small></td>
+                    <td class="slot-duration">{{ slot.duration.text if slot.duration else '-' }}</td>
+                    <td class="slot-fee fw-semibold">₦{{ "%.2f"|format(slot.current_fee or 0) }}</td>
+                    <td class="pe-4 text-end slot-actions">
+                        {% if slot.zone == 'simulation' %}
+                        <button type="button" class="btn btn-sm btn-outline-warning py-1 px-3 rounded-pill" onclick="showReleaseModal({{ slot.id }})">{% if slot.vehicle %}Replace{% else %}Refill{% endif %}</button>
+                        {% elif slot.vehicle %}
+                        <button type="button" class="btn btn-sm btn-outline-danger py-1 px-3 rounded-pill" onclick="showReleaseModal({{ slot.id }})">Release</button>
+                        {% else %}
+                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-3 rounded-pill" onclick="showParkModal({{ slot.id }})">Assign</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif page == 'revenue' %}
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white p-4 border-0 rounded-4 shadow-sm h-100">
+            <h5 class="mb-2 opacity-75">Total Vehicles Parked</h5>
+            <div class="display-5 fw-bold" id="admin-total-parked">{{ total_parked }}</div>
+            <p class="mt-2 mb-0 small"><i class="fas fa-car me-1"></i>Active Occupancy</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white p-4 border-0 rounded-4 shadow-sm h-100">
+            <h5 class="mb-2 opacity-75">Daily Revenue</h5>
+            <div class="display-5 fw-bold" id="admin-daily-revenue">₦{{ "%.2f"|format(daily_revenue) }}</div>
+            <p class="mt-2 mb-0 small"><i class="fas fa-calendar-day me-1"></i>Today's earnings</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-dark text-white p-4 border-0 rounded-4 shadow-sm h-100">
+            <h5 class="mb-2 opacity-75">Total Revenue</h5>
+            <div class="display-5 fw-bold" id="admin-total-revenue">₦{{ "%.2f"|format(total_revenue) }}</div>
+            <p class="mt-2 mb-0 small"><i class="fas fa-coins me-1"></i>All-time earnings</p>
+        </div>
+    </div>
+</div>
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card bg-info text-white p-4 border-0 rounded-4 shadow-sm h-100">
+            <h5 class="mb-2 opacity-75">Weekly Revenue</h5>
+            <div class="display-6 fw-bold" id="admin-weekly-revenue">₦{{ "%.2f"|format(weekly_revenue) }}</div>
+            <p class="mt-2 mb-0 small"><i class="fas fa-calendar-week me-1"></i>This week</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-secondary text-white p-4 border-0 rounded-4 shadow-sm h-100">
+            <h5 class="mb-2 opacity-75">Monthly Revenue</h5>
+            <div class="display-6 fw-bold" id="admin-monthly-revenue">₦{{ "%.2f"|format(monthly_revenue) }}</div>
+            <p class="mt-2 mb-0 small"><i class="fas fa-calendar-alt me-1"></i>This month</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark p-4 border-0 rounded-4 shadow-sm h-100">
+            <h5 class="mb-2 opacity-75">Yearly Revenue</h5>
+            <div class="display-6 fw-bold" id="admin-yearly-revenue">₦{{ "%.2f"|format(yearly_revenue) }}</div>
+            <p class="mt-2 mb-0 small"><i class="fas fa-calendar me-1"></i>This year</p>
+        </div>
+    </div>
+</div>
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 py-4">
+                <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-wallet me-2"></i>Payment Methods (Today)</h5>
+            </div>
+            <div class="card-body pt-0">
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                    <span class="text-muted">Card Payment</span>
+                    <span class="fw-bold" id="pm-card_payment">₦{{ "%.2f"|format((payment_methods_today | selectattr('key', 'equalto', 'card_payment') | map(attribute='amount') | first) or 0) }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                    <span class="text-muted">Bank Transfer</span>
+                    <span class="fw-bold" id="pm-bank_transfer">₦{{ "%.2f"|format((payment_methods_today | selectattr('key', 'equalto', 'bank_transfer') | map(attribute='amount') | first) or 0) }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2">
+                    <span class="text-muted">Crypto</span>
+                    <span class="fw-bold" id="pm-crypto">₦{{ "%.2f"|format((payment_methods_today | selectattr('key', 'equalto', 'crypto') | map(attribute='amount') | first) or 0) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 py-4">
+                <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-filter me-2"></i>Revenue History Search</h5>
+                <p class="text-muted small mb-0 mt-2">Search and audit revenue by day, month, or year, including totals for card payment, bank transfer, and crypto.</p>
+            </div>
+            <div class="card-body pt-0">
+                <form method="get" action="{{ url_for('main.admin_revenue') }}" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="revenue-view" class="form-label small text-muted">History View</label>
+                        <select id="revenue-view" name="view" class="form-select" onchange="toggleRevenueFilterInputs(this.value)">
+                            <option value="daily" {% if revenue_history_filters.view == 'daily' %}selected{% endif %}>Daily</option>
+                            <option value="monthly" {% if revenue_history_filters.view == 'monthly' %}selected{% endif %}>Monthly</option>
+                            <option value="yearly" {% if revenue_history_filters.view == 'yearly' %}selected{% endif %}>Yearly</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3" data-filter-input="daily">
+                        <label for="revenue-day" class="form-label small text-muted">Select Day</label>
+                        <input id="revenue-day" type="date" name="day" class="form-control" value="{{ revenue_history_filters.day }}">
+                    </div>
+                    <div class="col-md-3" data-filter-input="monthly">
+                        <label for="revenue-month" class="form-label small text-muted">Select Month</label>
+                        <input id="revenue-month" type="month" name="month" class="form-control" value="{{ revenue_history_filters.month }}">
+                    </div>
+                    <div class="col-md-2" data-filter-input="yearly">
+                        <label for="revenue-year" class="form-label small text-muted">Select Year</label>
+                        <input id="revenue-year" type="number" name="year" class="form-control" min="2000" max="9999" step="1" value="{{ revenue_history_filters.year }}" placeholder="2025">
+                    </div>
+                    <div class="col-md-4 col-lg-2">
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill">Search</button>
+                    </div>
+                    <div class="col-md-4 col-lg-2">
+                        <a href="{{ url_for('main.admin_revenue', view=revenue_history_filters.view) }}" class="btn btn-outline-secondary w-100 rounded-pill">Clear</a>
+                    </div>
+                </form>
+                <div class="mt-3 small text-muted">
+                    Showing <span class="fw-semibold text-dark text-capitalize">{{ revenue_history_filters.view }}</span> revenue history for <span class="fw-semibold text-dark">{{ revenue_history_filters.active_filter_label }}</span>.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white p-4 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-2 opacity-75 text-uppercase">Filtered Revenue</h6>
+            <div class="h3 fw-bold mb-1">₦{{ "%.2f"|format(revenue_history_summary.total_amount) }}</div>
+            <p class="mb-0 small">{{ revenue_history_summary.transactions }} transaction{% if revenue_history_summary.transactions != 1 %}s{% endif %}</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white p-4 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-2 opacity-75 text-uppercase">Card Payment</h6>
+            <div class="h3 fw-bold mb-1">₦{{ "%.2f"|format(revenue_history_summary.card_amount) }}</div>
+            <p class="mb-0 small">Selected {{ revenue_history_filters.view }} total</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white p-4 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-2 opacity-75 text-uppercase">Bank Transfer</h6>
+            <div class="h3 fw-bold mb-1">₦{{ "%.2f"|format(revenue_history_summary.bank_transfer_amount) }}</div>
+            <p class="mb-0 small">Selected {{ revenue_history_filters.view }} total</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark p-4 border-0 rounded-4 shadow-sm h-100">
+            <h6 class="mb-2 opacity-75 text-uppercase">Crypto</h6>
+            <div class="h3 fw-bold mb-1">₦{{ "%.2f"|format(revenue_history_summary.crypto_amount) }}</div>
+            <p class="mb-0 small">Selected {{ revenue_history_filters.view }} total</p>
+        </div>
+    </div>
+</div>
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-header bg-white border-bottom-0 py-4">
+        <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-clock-rotate-left me-2"></i>Revenue History</h5>
+        <p class="text-muted small mb-0 mt-2">Grouped {{ revenue_history_filters.view }} revenue showing transaction count and amount received through each payment method.</p>
+    </div>
+    <div class="card-body p-0 overflow-auto admin-table-container" style="max-height: 650px;">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light sticky-top">
+                <tr>
+                    <th class="ps-4">{% if revenue_history_filters.view == 'daily' %}Day{% elif revenue_history_filters.view == 'monthly' %}Month{% else %}Year{% endif %}</th>
+                    <th>Transactions</th>
+                    <th>Card Payment</th>
+                    <th>Bank Transfer</th>
+                    <th>Crypto</th>
+                    <th class="pe-4 text-end">Total Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in revenue_history %}
+                <tr>
+                    <td class="ps-4 fw-semibold">{{ item.period_label }}</td>
+                    <td>{{ item.transactions }}</td>
+                    <td>₦{{ "%.2f"|format(item.card_amount) }}</td>
+                    <td>₦{{ "%.2f"|format(item.bank_transfer_amount) }}</td>
+                    <td>₦{{ "%.2f"|format(item.crypto_amount) }}</td>
+                    <td class="pe-4 text-end fw-bold">₦{{ "%.2f"|format(item.total_amount) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">No revenue history found for the selected search.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif page == 'chart' %}
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-header bg-white border-bottom-0 py-4">
+        <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-chart-line me-2"></i>Revenue (Last 7 Days)</h5>
+    </div>
+    <div class="card-body pt-0">
+        <canvas id="revenue-chart" height="220" style="width: 100%;"></canvas>
+    </div>
+</div>
+{% elif page == 'maintenance' %}
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-header bg-white border-bottom-0 py-4">
+        <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-screwdriver-wrench me-2"></i>Maintenance Costs</h5>
+    </div>
+    <div class="card-body pt-0">
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <span class="text-muted">Weekly</span>
+            <span class="fw-bold" id="maint-weekly-total">₦{{ "%.2f"|format(maintenance.total_weekly) }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <span class="text-muted">Monthly</span>
+            <span class="fw-bold text-danger" id="maint-total">₦{{ "%.2f"|format(maintenance.total_monthly) }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <span class="text-muted">Yearly</span>
+            <span class="fw-bold" id="maint-yearly-total">₦{{ "%.2f"|format(maintenance.total_yearly) }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <span class="text-muted">Sensors (<span id="maint-sensors-count">{{ maintenance.sensors_count }}</span>)</span>
+            <span class="fw-bold" id="maint-sensors">₦{{ "%.2f"|format(maintenance.sensors_monthly) }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <span class="text-muted">Cameras (<span id="maint-cameras-count">{{ maintenance.cameras_count }}</span>)</span>
+            <span class="fw-bold" id="maint-cameras">₦{{ "%.2f"|format(maintenance.cameras_monthly) }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center py-2">
+            <span class="text-muted">Misc</span>
+            <span class="fw-bold" id="maint-misc">₦{{ "%.2f"|format(maintenance.misc_monthly) }}</span>
+        </div>
+    </div>
+</div>
+{% elif page == 'history' %}
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-header bg-white border-bottom-0 py-4">
+        <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-clock-rotate-left me-2"></i>Recent Parking History</h5>
+        <p class="text-muted small mb-0 mt-2">Recent vehicles that completed parking, showing duration spent, payment method, and amount charged.</p>
+    </div>
+    <div class="card-body p-0 overflow-auto admin-table-container" style="max-height: 650px;">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light sticky-top">
+                <tr>
+                    <th class="ps-4">Vehicle</th>
+                    <th>Slot</th>
+                    <th>Parked At</th>
+                    <th>Exited At</th>
+                    <th>Duration</th>
+                    <th>Payment Method</th>
+                    <th class="pe-4 text-end">Charged</th>
+                </tr>
+            </thead>
+            <tbody id="admin-history-table">
+                {% for item in parking_history %}
+                <tr>
+                    <td class="ps-4"><span class="font-monospace">{{ item.vehicle }}</span></td>
+                    <td>{{ item.slot_label or '-' }}</td>
+                    <td><small class="text-muted">{{ item.parked_at or '-' }}</small></td>
+                    <td><small class="text-muted">{{ item.exited_at or '-' }}</small></td>
+                    <td>{{ item.duration.text if item.duration else '-' }}</td>
+                    <td>{{ item.payment_method_label }}</td>
+                    <td class="pe-4 text-end fw-bold">₦{{ "%.2f"|format(item.amount) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">No parking history yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Manual Park Modal -->
+<div class="modal fade" id="manualParkModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title fw-bold">Manual Assign</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="manualParkForm" onsubmit="handleManualActionSubmit(event)">
+                <div class="modal-body">
+                    <input type="hidden" name="slot_id" id="manual-slot-id">
+                    <input type="hidden" name="action" value="park">
+                    <div class="mb-3">
+                        <label class="form-label small">Vehicle Number</label>
+                        <input type="text" name="vehicle" id="manual-vehicle" class="form-control text-uppercase" required placeholder="ABC-123">
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="submit" class="btn btn-primary w-100">Confirm Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Release Modal -->
+<div class="modal fade" id="manualReleaseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title fw-bold">Manual Release</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="manualReleaseForm" onsubmit="handleReleaseSubmit(event)">
+                <div class="modal-body">
+                    <input type="hidden" name="slot_id" id="manual-release-slot-id">
+                    <input type="hidden" name="action" value="release">
+                    <div class="mb-3">
+                        <label class="form-label small">Payment Method</label>
+                        <select name="payment_method" id="manual-release-method" class="form-select" required>
+                            <option value="card_payment">Card Payment</option>
+                            <option value="bank_transfer" selected>Bank Transfer</option>
+                            <option value="crypto">Crypto</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="submit" class="btn btn-danger w-100">Confirm Release</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Modal once
+    let manualParkModal;
+    let manualReleaseModal;
+    const MANUAL_ACTION_URL = "{{ url_for('main.admin_manual') }}";
+    const ADMIN_STATS_URL = "{{ url_for('main.admin_stats') }}";
+    const ADMIN_LOGIN_URL = "{{ url_for('auth.admin_login') }}";
+    const REFRESH_SECONDS = {{ refresh_seconds|default(3)|tojson }};
+    const INITIAL_REVENUE_SERIES = {{ revenue_series|tojson }};
+    const INITIAL_MAINTENANCE = {{ maintenance|tojson }};
+    const INITIAL_PAYMENT_METHODS_TODAY = {{ payment_methods_today|tojson }};
+    const INITIAL_VEHICLE_REGISTRY_ANALYTICS = {{ vehicle_registry_analytics|tojson }};
+    let lastRevenueSeries = INITIAL_REVENUE_SERIES;
+    let lastMaintenance = INITIAL_MAINTENANCE;
+    let lastPaymentMethodsToday = INITIAL_PAYMENT_METHODS_TODAY;
+    let lastVehicleRegistryAnalytics = INITIAL_VEHICLE_REGISTRY_ANALYTICS;
+    let refreshBadge;
+    let refreshIntervalId;
+    let refreshInFlight = false;
+
+    function resetBootstrapLayerState() {
+        document.querySelectorAll('.modal-backdrop, .offcanvas-backdrop').forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+
+        document.querySelectorAll('.modal.show, .offcanvas.show').forEach(el => {
+            el.classList.remove('show');
+            el.style.removeProperty('display');
+            el.style.removeProperty('visibility');
+            el.removeAttribute('aria-modal');
+            el.setAttribute('aria-hidden', 'true');
+        });
+    }
+
+    function toggleRevenueFilterInputs(view) {
+        document.querySelectorAll('[data-filter-input]').forEach(el => {
+            const isActive = el.getAttribute('data-filter-input') === view;
+            el.style.display = isActive ? '' : 'none';
+        });
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        resetBootstrapLayerState();
+        const modalElement = document.getElementById('manualParkModal');
+        if (modalElement) {
+            manualParkModal = new bootstrap.Modal(modalElement);
+            modalElement.addEventListener('hidden.bs.modal', cleanupModalArtifacts);
+        }
+        const releaseModalElement = document.getElementById('manualReleaseModal');
+        if (releaseModalElement) {
+            manualReleaseModal = new bootstrap.Modal(releaseModalElement);
+            releaseModalElement.addEventListener('hidden.bs.modal', cleanupModalArtifacts);
+        }
+
+        refreshBadge = document.getElementById('admin-refresh-badge');
+        cleanupModalArtifacts(true);
+        window.addEventListener('pageshow', () => cleanupModalArtifacts(true));
+        window.addEventListener('load', () => cleanupModalArtifacts(true));
+        setTimeout(() => cleanupModalArtifacts(true), 0);
+        setTimeout(() => cleanupModalArtifacts(true), 500);
+        setTimeout(() => cleanupModalArtifacts(true), 1200);
+        const revenueViewSelect = document.getElementById('revenue-view');
+        if (revenueViewSelect) {
+            toggleRevenueFilterInputs(revenueViewSelect.value);
+        }
+        renderRevenueChart(lastRevenueSeries);
+        updateMaintenance(lastMaintenance);
+        updatePaymentMethods(lastPaymentMethodsToday);
+        updateVehicleRegistryAnalytics(lastVehicleRegistryAnalytics);
+
+        const sidebarEl = document.getElementById('adminSidebar');
+        if (sidebarEl) {
+            sidebarEl.addEventListener('shown.bs.offcanvas', () => {
+                renderRevenueChart(lastRevenueSeries);
+                updateMaintenance(lastMaintenance);
+                updatePaymentMethods(lastPaymentMethodsToday);
+                updateVehicleRegistryAnalytics(lastVehicleRegistryAnalytics);
+            });
+            sidebarEl.addEventListener('hidden.bs.offcanvas', () => cleanupModalArtifacts(true));
+        }
+        
+        // Initial refresh
+        refreshAdminStats();
+        startAutoRefresh();
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                refreshAdminStats();
+                startAutoRefresh();
+            }
+        });
+    });
+
+    function cleanupModalArtifacts(force = false) {
+        if (force) {
+            resetBootstrapLayerState();
+        }
+
+        const manualModalEl = document.getElementById('manualParkModal');
+        const isManualModalShown = manualModalEl ? manualModalEl.classList.contains('show') : false;
+        const releaseModalEl = document.getElementById('manualReleaseModal');
+        const isReleaseModalShown = releaseModalEl ? releaseModalEl.classList.contains('show') : false;
+        const sidebarEl = document.getElementById('adminSidebar');
+        const isOffcanvasShown = document.querySelectorAll('.offcanvas.show').length > 0;
+        if (isOffcanvasShown && !force) return;
+        if ((isManualModalShown || isReleaseModalShown) && !force) return;
+
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
+
+        document.body.classList.remove('modal-open');
+        document.body.classList.remove('offcanvas-backdrop');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+        if (sidebarEl && force) {
+            sidebarEl.classList.remove('show');
+            sidebarEl.style.removeProperty('visibility');
+            sidebarEl.style.removeProperty('display');
+            sidebarEl.removeAttribute('aria-modal');
+            sidebarEl.setAttribute('aria-hidden', 'true');
+        }
+        if (manualModalEl) {
+            manualModalEl.classList.remove('show');
+            manualModalEl.style.removeProperty('display');
+            manualModalEl.removeAttribute('aria-modal');
+            manualModalEl.setAttribute('aria-hidden', 'true');
+        }
+        if (releaseModalEl) {
+            releaseModalEl.classList.remove('show');
+            releaseModalEl.style.removeProperty('display');
+            releaseModalEl.removeAttribute('aria-modal');
+            releaseModalEl.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    function startAutoRefresh() {
+        if (refreshIntervalId) return;
+        refreshIntervalId = setInterval(refreshAdminStats, REFRESH_SECONDS * 1000);
+    }
+
+    function stopAutoRefresh() {
+        if (!refreshIntervalId) return;
+        clearInterval(refreshIntervalId);
+        refreshIntervalId = undefined;
+    }
+
+    function setRefreshBadgeOnline() {
+        if (!refreshBadge) return;
+        refreshBadge.className = 'badge bg-light text-muted fw-normal border';
+        refreshBadge.innerText = `Auto-refresh: ${REFRESH_SECONDS}s`;
+    }
+
+    function setRefreshBadgeOffline() {
+        if (!refreshBadge) return;
+        refreshBadge.className = 'badge bg-warning text-dark fw-normal border';
+        refreshBadge.innerText = 'Offline - Retrying...';
+    }
+
+    function showParkModal(slotId) {
+        const input = document.getElementById('manual-slot-id');
+        const vehicleInput = document.getElementById('manual-vehicle');
+        if (input) input.value = slotId;
+        if (vehicleInput) vehicleInput.value = '';
+        if (manualParkModal) manualParkModal.show();
+    }
+
+    function showReleaseModal(slotId) {
+        const input = document.getElementById('manual-release-slot-id');
+        const methodSelect = document.getElementById('manual-release-method');
+        if (input) input.value = slotId;
+        if (methodSelect) methodSelect.value = 'bank_transfer';
+        if (manualReleaseModal) manualReleaseModal.show();
+    }
+
+    function handleReleaseSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const slotId = formData.get('slot_id');
+        const paymentMethod = formData.get('payment_method');
+
+        performAction(slotId, 'release', null, paymentMethod).then(ok => {
+            if (ok && manualReleaseModal) manualReleaseModal.hide();
+        });
+    }
+
+    function handleManualActionSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const slotId = formData.get('slot_id');
+        const vehicle = (formData.get('vehicle') || '').toString().trim().toUpperCase();
+
+        if (!vehicle) {
+            const vehicleInput = document.getElementById('manual-vehicle');
+            if (vehicleInput) vehicleInput.focus();
+            return;
+        }
+        
+        performAction(slotId, 'park', vehicle).then(ok => {
+            if (ok && manualParkModal) manualParkModal.hide();
+        });
+    }
+
+    function performAction(slotId, action, vehicle = null, paymentMethod = null) {
+        const formData = new FormData();
+        formData.append('slot_id', slotId);
+        formData.append('action', action);
+        if (vehicle) formData.append('vehicle', vehicle);
+        if (paymentMethod) formData.append('payment_method', paymentMethod);
+
+        return fetch(MANUAL_ACTION_URL, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => {
+            if (res.redirected || (res.url && res.url.includes('/admin-login'))) {
+                window.location.href = ADMIN_LOGIN_URL;
+                return { ok: false, body: { error: 'Session expired. Please login again.' } };
+            }
+
+            return res.json()
+                .catch(() => ({}))
+                .then(body => ({ ok: res.ok, body }));
+        })
+        .then(({ ok, body }) => {
+            if (ok) {
+                refreshAdminStats();
+                return true;
+            }
+
+            alert(body.error || body.message || 'Action failed. Please try again.');
+            return false;
+        })
+        .catch(err => {
+            console.error('Error performing action:', err);
+            alert('An error occurred. Check console for details.');
+            return false;
+        });
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        const pad = (n) => n.toString().padStart(2, '0');
+        
+        const year = d.getFullYear();
+        const month = pad(d.getMonth() + 1);
+        const day = pad(d.getDate());
+        const hours = pad(d.getHours());
+        const minutes = pad(d.getMinutes());
+        const seconds = pad(d.getSeconds());
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+
+    function updateMaintenance(maintenance) {
+        if (!maintenance) return;
+
+        const weeklyTotalEl = document.getElementById('maint-weekly-total');
+        const sensorsCount = document.getElementById('maint-sensors-count');
+        const camerasCount = document.getElementById('maint-cameras-count');
+        const sensorsEl = document.getElementById('maint-sensors');
+        const camerasEl = document.getElementById('maint-cameras');
+        const miscEl = document.getElementById('maint-misc');
+        const totalEl = document.getElementById('maint-total');
+        const yearlyTotalEl = document.getElementById('maint-yearly-total');
+
+        if (weeklyTotalEl) weeklyTotalEl.innerText = '₦' + Number(maintenance.total_weekly || 0).toFixed(2);
+        if (sensorsCount) sensorsCount.innerText = maintenance.sensors_count ?? '';
+        if (camerasCount) camerasCount.innerText = maintenance.cameras_count ?? '';
+        if (sensorsEl) sensorsEl.innerText = '₦' + Number(maintenance.sensors_monthly || 0).toFixed(2);
+        if (camerasEl) camerasEl.innerText = '₦' + Number(maintenance.cameras_monthly || 0).toFixed(2);
+        if (miscEl) miscEl.innerText = '₦' + Number(maintenance.misc_monthly || 0).toFixed(2);
+        if (totalEl) totalEl.innerText = '₦' + Number(maintenance.total_monthly || 0).toFixed(2);
+        if (yearlyTotalEl) yearlyTotalEl.innerText = '₦' + Number(maintenance.total_yearly || 0).toFixed(2);
+    }
+
+    function updatePaymentMethods(methods) {
+        const list = Array.isArray(methods) ? methods : [];
+        const byKey = {};
+        list.forEach(m => {
+            if (!m || !m.key) return;
+            byKey[m.key] = m;
+        });
+
+        const cardEl = document.getElementById('pm-card_payment');
+        const bankEl = document.getElementById('pm-bank_transfer');
+        const cryptoEl = document.getElementById('pm-crypto');
+
+        if (cardEl) cardEl.innerText = '₦' + Number(byKey.card_payment?.amount || 0).toFixed(2);
+        if (bankEl) bankEl.innerText = '₦' + Number(byKey.bank_transfer?.amount || 0).toFixed(2);
+        if (cryptoEl) cryptoEl.innerText = '₦' + Number(byKey.crypto?.amount || 0).toFixed(2);
+    }
+
+    function renderAnalyticsList(items, labelKey, containerId, emptyText) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const rows = Array.isArray(items) ? items : [];
+        if (!rows.length) {
+            container.innerHTML = `<div class="text-muted small">${emptyText}</div>`;
+            return;
+        }
+
+        container.innerHTML = rows.map(item => `
+            <div class="d-flex justify-content-between border-bottom py-2">
+                <span class="text-muted">${item[labelKey] || '-'}</span>
+                <span class="fw-bold">${item.count ?? 0}</span>
+            </div>
+        `).join('');
+    }
+
+    function updateVehicleRegistryAnalytics(analytics) {
+        const data = analytics || {};
+        const totalEl = document.getElementById('registry-total');
+        const mappedCountEl = document.getElementById('registry-mapped-count');
+        const mappedRateEl = document.getElementById('registry-mapped-rate');
+
+        if (totalEl) totalEl.innerText = data.total_registered ?? 0;
+        if (mappedCountEl) mappedCountEl.innerText = data.mapped_prefix_count ?? 0;
+        if (mappedRateEl) mappedRateEl.innerText = Number(data.mapped_prefix_rate || 0).toFixed(2) + '%';
+
+        renderAnalyticsList(data.top_states, 'state', 'registry-states', 'No registration data yet.');
+        renderAnalyticsList(data.top_local_governments, 'local_government', 'registry-lgas', 'No local government data yet.');
+        renderAnalyticsList(data.top_models, 'model', 'registry-models', 'No model data yet.');
+        renderAnalyticsList(data.top_colors, 'color', 'registry-colors', 'No color data yet.');
+    }
+
+    function updateHistoryTable(history) {
+        const tableBody = document.getElementById('admin-history-table');
+        if (!tableBody) return;
+
+        const rows = Array.isArray(history) ? history : [];
+        if (rows.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No parking history yet.</td></tr>';
+            return;
+        }
+
+        tableBody.innerHTML = rows.map(item => {
+            const parkedAt = formatDate(item.parked_at);
+            const exitedAt = formatDate(item.exited_at || item.timestamp);
+            const durationText = item.duration && item.duration.text ? item.duration.text : '-';
+            const slotText = item.slot_label || (item.slot_id ? `#${item.slot_id}` : '-');
+            const methodText = item.payment_method_label || item.payment_method || '-';
+            const amountText = '₦' + Number(item.amount || 0).toFixed(2);
+
+            return `
+                <tr>
+                    <td class="ps-4"><span class="font-monospace">${item.vehicle || '-'}</span></td>
+                    <td>${slotText}</td>
+                    <td><small class="text-muted">${parkedAt}</small></td>
+                    <td><small class="text-muted">${exitedAt}</small></td>
+                    <td>${durationText}</td>
+                    <td>${methodText}</td>
+                    <td class="pe-4 text-end fw-bold">${amountText}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderRevenueChart(series) {
+        lastRevenueSeries = Array.isArray(series) ? series : [];
+        const canvas = document.getElementById('revenue-chart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const cssWidth = Math.floor(rect.width);
+        if (!cssWidth || cssWidth < 80) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        const cssHeight = Number(canvas.getAttribute('height')) || 180;
+
+        canvas.width = Math.floor(cssWidth * dpr);
+        canvas.height = Math.floor(cssHeight * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+        const data = Array.isArray(series) ? series : [];
+        const values = data.map(d => Number(d.amount || 0));
+        const maxValue = Math.max(1, ...values);
+        const paddingLeft = 48;
+        const paddingRight = 16;
+        const paddingTop = 16;
+        const paddingBottom = 34;
+        const chartWidth = cssWidth - paddingLeft - paddingRight;
+        const chartHeight = cssHeight - paddingTop - paddingBottom;
+
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, paddingTop);
+        ctx.lineTo(paddingLeft, paddingTop + chartHeight);
+        ctx.lineTo(paddingLeft + chartWidth, paddingTop + chartHeight);
+        ctx.stroke();
+
+        const steps = 4;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+        for (let i = 0; i <= steps; i++) {
+            const y = paddingTop + chartHeight - (chartHeight * i / steps);
+            const labelValue = (maxValue * i / steps);
+            ctx.fillText('₦' + labelValue.toFixed(0), 4, y + 4);
+            ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+            ctx.beginPath();
+            ctx.moveTo(paddingLeft, y);
+            ctx.lineTo(paddingLeft + chartWidth, y);
+            ctx.stroke();
+        }
+
+        if (data.length === 0) return;
+
+        const gap = 8;
+        const barSlot = (chartWidth - gap * (data.length - 1)) / data.length;
+        const barWidth = Math.max(8, Math.floor(barSlot * 0.7));
+
+        ctx.fillStyle = '#0d6efd';
+        data.forEach((point, index) => {
+            const value = Number(point.amount || 0);
+            const barHeight = Math.round((value / maxValue) * chartHeight);
+            const x = paddingLeft + index * (barSlot + gap) + (barSlot - barWidth) / 2;
+            const y = paddingTop + chartHeight - barHeight;
+            ctx.fillRect(x, y, barWidth, barHeight);
+
+            const label = (point.date || '').toString().slice(5);
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillText(label, x - 2, paddingTop + chartHeight + 18);
+            ctx.fillStyle = '#0d6efd';
+        });
+    }
+
+    function refreshAdminStats() {
+        if (!window.location.pathname.startsWith('/admin')) return;
+        if (refreshInFlight) return;
+        refreshInFlight = true;
+
+        cleanupModalArtifacts();
+        fetch(ADMIN_STATS_URL)
+            .then(res => {
+                if (res.redirected || (res.url && res.url.includes('/admin-login'))) {
+                    window.location.href = ADMIN_LOGIN_URL;
+                    throw new Error('Session expired');
+                }
+
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    window.location.href = ADMIN_LOGIN_URL;
+                    throw new Error('Unexpected response type');
+                }
+
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
+            .then(data => {
+                setRefreshBadgeOnline();
+                const totalSpacesEl = document.getElementById('admin-total-spaces');
+                const simOccupiedEl = document.getElementById('admin-simulation-occupied');
+                const realOccupiedEl = document.getElementById('admin-real-user-occupied');
+                const simRevenueEl = document.getElementById('admin-simulation-revenue');
+                const realRevenueEl = document.getElementById('admin-real-user-revenue');
+                const availableEl = document.getElementById('admin-total-available');
+                const simRateEl = document.getElementById('admin-simulation-rate');
+                const realRateEl = document.getElementById('admin-real-rate');
+                const totalRateEl = document.getElementById('admin-total-rate');
+                const vehiclesTodayEl = document.getElementById('admin-vehicles-today');
+                const totalRevenueAnalyticsEl = document.getElementById('admin-total-revenue-analytics');
+                const parkedEl = document.getElementById('admin-total-parked');
+                const dailyEl = document.getElementById('admin-daily-revenue');
+                const weeklyEl = document.getElementById('admin-weekly-revenue');
+                const monthlyEl = document.getElementById('admin-monthly-revenue');
+                const yearlyEl = document.getElementById('admin-yearly-revenue');
+                const totalEl = document.getElementById('admin-total-revenue');
+                
+                if (totalSpacesEl) totalSpacesEl.innerText = data.total_spaces;
+                if (simOccupiedEl) simOccupiedEl.innerText = data.simulation_occupied;
+                if (realOccupiedEl) realOccupiedEl.innerText = data.real_user_occupied;
+                if (simRevenueEl) simRevenueEl.innerText = '₦' + data.simulation_revenue.toFixed(2);
+                if (realRevenueEl) realRevenueEl.innerText = '₦' + data.real_user_revenue.toFixed(2);
+                if (availableEl) availableEl.innerText = data.total_available_spaces;
+                if (simRateEl) simRateEl.innerText = Number(data.simulation_occupancy_rate || 0).toFixed(2) + '%';
+                if (realRateEl) realRateEl.innerText = Number(data.real_user_occupancy_rate || 0).toFixed(2) + '%';
+                if (totalRateEl) totalRateEl.innerText = Number(data.total_occupancy_rate || 0).toFixed(2) + '%';
+                if (vehiclesTodayEl) vehiclesTodayEl.innerText = data.vehicles_parked_today;
+                if (totalRevenueAnalyticsEl) totalRevenueAnalyticsEl.innerText = '₦' + data.total_revenue.toFixed(2);
+                if (parkedEl) parkedEl.innerText = data.total_parked;
+                if (dailyEl) dailyEl.innerText = '₦' + data.daily_revenue.toFixed(2);
+                if (weeklyEl) weeklyEl.innerText = '₦' + data.weekly_revenue.toFixed(2);
+                if (monthlyEl) monthlyEl.innerText = '₦' + data.monthly_revenue.toFixed(2);
+                if (yearlyEl) yearlyEl.innerText = '₦' + data.yearly_revenue.toFixed(2);
+                if (totalEl) totalEl.innerText = '₦' + data.total_revenue.toFixed(2);
+                lastRevenueSeries = data.revenue_series;
+                lastMaintenance = data.maintenance;
+                lastPaymentMethodsToday = data.payment_methods_today;
+                lastVehicleRegistryAnalytics = data.vehicle_registry_analytics;
+                renderRevenueChart(lastRevenueSeries);
+                updateMaintenance(lastMaintenance);
+                updatePaymentMethods(lastPaymentMethodsToday);
+                updateVehicleRegistryAnalytics(lastVehicleRegistryAnalytics);
+                updateHistoryTable(data.parking_history);
+
+                const tableBody = document.getElementById('admin-slots-table');
+                if (!tableBody) return;
+                
+                // Only update if no modal is open to avoid UI flickering/issues
+                if (document.querySelectorAll('.modal.show').length > 0) return;
+
+                data.slots.forEach(slot => {
+                    const row = document.getElementById(`slot-row-${slot.id}`);
+                    if (!row) {
+                        tableBody.insertAdjacentHTML(
+                            'beforeend',
+                            `
+                                <tr id="slot-row-${slot.id}">
+                                    <td class="ps-4 fw-bold">#${slot.id}</td>
+                                    <td class="slot-zone"></td>
+                                    <td class="slot-status"></td>
+                                    <td class="slot-plate"></td>
+                                    <td class="slot-model"></td>
+                                    <td class="slot-color"></td>
+                                    <td class="slot-year"></td>
+                                    <td class="slot-state"></td>
+                                    <td class="slot-time"></td>
+                                    <td class="slot-duration"></td>
+                                    <td class="slot-fee"></td>
+                                    <td class="pe-4 text-end slot-actions"></td>
+                                </tr>
+                            `
+                        );
+                    }
+
+                    const currentRow = document.getElementById(`slot-row-${slot.id}`);
+                    if (!currentRow) return;
+
+                    const statusCell = currentRow.querySelector('.slot-status');
+                    const zoneCell = currentRow.querySelector('.slot-zone');
+                    const plateCell = currentRow.querySelector('.slot-plate');
+                    const modelCell = currentRow.querySelector('.slot-model');
+                    const colorCell = currentRow.querySelector('.slot-color');
+                    const yearCell = currentRow.querySelector('.slot-year');
+                    const stateCell = currentRow.querySelector('.slot-state');
+                    const timeCell = currentRow.querySelector('.slot-time');
+                    const durationCell = currentRow.querySelector('.slot-duration');
+                    const feeCell = currentRow.querySelector('.slot-fee');
+                    const actionsCell = currentRow.querySelector('.slot-actions');
+
+                    const entryTime = formatDate(slot.entry_time);
+                    const badgeClass = slot.vehicle ? 'bg-danger' : 'bg-success';
+                    const statusText = slot.vehicle ? 'Occupied' : 'Available';
+                    const zoneBadgeClass = slot.zone === 'simulation' ? 'bg-dark' : 'bg-primary';
+                    const slotLabel = slot.slot_label || slot.id;
+                    const durationText = slot.duration && slot.duration.text ? slot.duration.text : '-';
+                    const feeText = '₦' + Number(slot.current_fee || 0).toFixed(2);
+                    const vehicleRecord = slot.vehicle_record || {};
+                    
+                    // Update content only if changed to minimize DOM manipulation
+                    const labelHtml = `${slotLabel}`;
+                    const slotCell = currentRow.children[0];
+                    if (slotCell && slotCell.innerHTML !== labelHtml) slotCell.innerHTML = labelHtml;
+
+                    const zoneHtml = `<span class="badge ${zoneBadgeClass}">${slot.zone_label || '-'}</span>`;
+                    if (zoneCell.innerHTML !== zoneHtml) zoneCell.innerHTML = zoneHtml;
+
+                    const statusHtml = `<span class="badge ${badgeClass}">${statusText}</span>`;
+                    if (statusCell.innerHTML !== statusHtml) statusCell.innerHTML = statusHtml;
+
+                    const plateHtml = `<span class="font-monospace">${slot.plate_number || '-'}</span>`;
+                    if (plateCell.innerHTML !== plateHtml) plateCell.innerHTML = plateHtml;
+                    if (modelCell.innerHTML !== (vehicleRecord.model || '-')) modelCell.innerHTML = vehicleRecord.model || '-';
+                    if (colorCell.innerHTML !== (vehicleRecord.color || '-')) colorCell.innerHTML = vehicleRecord.color || '-';
+                    if (yearCell.innerHTML !== String(vehicleRecord.year || '-')) yearCell.innerHTML = String(vehicleRecord.year || '-');
+                    if (stateCell.innerHTML !== (vehicleRecord.state_of_registration || '-')) stateCell.innerHTML = vehicleRecord.state_of_registration || '-';
+
+                    const timeHtml = `<small class="text-muted">${entryTime}</small>`;
+                    if (timeCell.innerHTML !== timeHtml) timeCell.innerHTML = timeHtml;
+
+                    if (durationCell.innerHTML !== durationText) durationCell.innerHTML = durationText;
+                    if (feeCell.innerHTML !== feeText) feeCell.innerHTML = feeText;
+
+                    const actionsHtml = slot.zone === 'simulation'
+                        ? `<button type="button" class="btn btn-sm btn-outline-warning py-1 px-3 rounded-pill" onclick="showReleaseModal(${slot.id})">${slot.vehicle ? 'Replace' : 'Refill'}</button>`
+                        : (slot.vehicle
+                            ? `<button type="button" class="btn btn-sm btn-outline-danger py-1 px-3 rounded-pill" onclick="showReleaseModal(${slot.id})">Release</button>`
+                            : `<button type="button" class="btn btn-sm btn-outline-primary py-1 px-3 rounded-pill" onclick="showParkModal(${slot.id})">Assign</button>`);
+                    
+                    if (actionsCell.innerHTML !== actionsHtml) actionsCell.innerHTML = actionsHtml;
+                });
+            })
+            .catch(err => {
+                console.error('Error refreshing admin stats:', err);
+                setRefreshBadgeOffline();
+            })
+            .finally(() => {
+                refreshInFlight = false;
+            });
+    }
+</script>
+{% endblock %}

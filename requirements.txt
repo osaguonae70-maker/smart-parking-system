@@ -1,0 +1,12 @@
+flask
+flask-sqlalchemy
+flask-login
+werkzeug
+qrcode[pil]
+pandas
+flask-cors
+python-dotenv
+pyzbar
+opencv-python
+gunicorn
+psycopg[binary]

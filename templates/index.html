@@ -1,0 +1,217 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2 class="display-6 fw-bold mb-2">Smart Parking @ NSUK</h2>
+        <p class="text-muted">Fast, secure, and automated parking for the university community.</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="card bg-primary text-white p-3 rounded-4 shadow-sm">
+            <h5 class="mb-0 small opacity-75 text-uppercase">Available Real User Slots</h5>
+            <div class="display-6 fw-bold" id="available-count">{{ available_slots }}</div>
+        </div>
+    </div>
+</div>
+
+{% if parked_slot %}
+<div class="alert alert-success d-flex justify-content-between align-items-center rounded-4">
+    <div>
+        <div class="fw-bold">Parking Confirmed</div>
+        <div class="small">Vehicle <span class="font-monospace">{{ vehicle_number }}</span> assigned to Slot {{ parked_slot }}</div>
+        {% if parked_entry_time %}
+        <div class="small text-muted">Start time: {{ parked_entry_time }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Map Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-white border-bottom-0 py-3">
+                <h5 class="mb-0 text-primary fw-bold small text-uppercase"><i class="fas fa-map-marked-alt me-2"></i>Parking Location</h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="map" style="height: 250px; border-radius: 0 0 1rem 1rem;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slots Visibility Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-white border-bottom-0 py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-dark fw-bold small text-uppercase"><i class="fas fa-th me-2"></i>Real User Zone (Live)</h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="filter" id="filter-all" checked>
+                    <label class="btn btn-outline-secondary" for="filter-all">All</label>
+                    <input type="radio" class="btn-check" name="filter" id="filter-available">
+                    <label class="btn btn-outline-success" for="filter-available">Free</label>
+                    <input type="radio" class="btn-check" name="filter" id="filter-occupied">
+                    <label class="btn btn-outline-danger" for="filter-occupied">Full</label>
+                </div>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <div class="mb-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="search-input" class="form-control border-start-0" placeholder="Search vehicle or slot #...">
+                    </div>
+                </div>
+                <div id="slots-grid" class="parking-grid">
+                    {% for i in range(1, 31) %}
+                    <div class="slot-item available" data-id="R{{ i }}" data-vehicle="" title="Slot R{{ i }} - Available">
+                        <div class="slot-number">R{{ i }}</div>
+                        <div class="slot-vehicle">
+                            <i class="fas fa-check-circle mb-1"></i>
+                            <span>FREE</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-3 small text-muted text-center">
+                    <i class="fas fa-info-circle me-1"></i> Real-time occupancy for actual user spaces R1-R30. Simulation spaces S1-S20 are managed separately.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <!-- Park Vehicle Form -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="mb-0 text-success fw-bold"><i class="fas fa-car-side me-2"></i>Park Vehicle</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('main.park') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="vehicle_number" class="form-label">Enter Vehicle Number</label>
+                        <input type="text" name="vehicle_number" class="form-control form-control-lg text-uppercase" id="vehicle_number" placeholder="e.g. ABC-123-XY" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 py-3 rounded-3 fw-bold">
+                        Assign Slot
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Release/Exit Vehicle -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="mb-0 text-danger fw-bold"><i class="fas fa-door-open me-2"></i>Exit & Pay</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Enter your vehicle number to calculate your fee and release the slot.</p>
+                
+                <div id="manual-exit-form" class="mt-3">
+                    <div class="input-group input-group-lg">
+                        <input type="text" id="manual-vehicle-input" class="form-control text-uppercase" placeholder="Vehicle Number">
+                        <button class="btn btn-danger px-4" type="button" onclick="processManualExit()">
+                            <i class="fas fa-calculator me-2"></i>Check Fee
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header border-bottom-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold text-dark">Payment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="payment-info" class="text-center mb-4">
+                    <!-- Dynamic content -->
+                </div>
+                
+                <form action="{{ url_for('main.pay_and_release') }}" method="POST">
+                    <input type="hidden" name="vehicle_number" id="pay-vehicle">
+                    <input type="hidden" name="fee" id="pay-fee">
+                    
+                    <div class="bg-light p-3 rounded-3 mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Parking Fee:</span>
+                            <span class="fw-bold" id="display-fee">₦0.00</span>
+                        </div>
+                        <div class="d-flex justify-content-between border-top pt-2">
+                            <span class="text-dark fw-bold">Total to Pay:</span>
+                            <span class="text-success fw-bold fs-4" id="display-total">₦0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">Payment Method</label>
+                        <select class="form-select" name="payment_method" id="pay-method" required>
+                            <option value="card_payment" selected>Card Payment</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="crypto">Crypto</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100 py-3 rounded-3 fw-bold">
+                        Confirm Payment & Exit
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function processManualExit() {
+        const vehicle = document.getElementById('manual-vehicle-input').value.trim().toUpperCase();
+        if (!vehicle) return alert('Enter vehicle number');
+        
+        fetch('/api/process-exit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({vehicle_number: vehicle})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return alert(data.error);
+            showPaymentModal(data);
+        });
+    }
+
+    function showPaymentModal(data) {
+        document.getElementById('pay-vehicle').value = data.vehicle;
+        document.getElementById('pay-fee').value = data.fee;
+        const methodEl = document.getElementById('pay-method');
+        if (methodEl) methodEl.value = 'card_payment';
+        document.getElementById('display-fee').innerText = '₦' + data.fee.toFixed(2);
+        document.getElementById('display-total').innerText = '₦' + data.fee.toFixed(2);
+        
+        const infoDiv = document.getElementById('payment-info');
+        const durationText = data.duration && data.duration.text ? data.duration.text : null;
+        const durationMinutes = (data.duration && Number.isFinite(Number(data.duration.minutes))) ? Number(data.duration.minutes) : null;
+        const durationHours = (data.duration && Number.isFinite(Number(data.duration.hours))) ? Number(data.duration.hours) : null;
+        const billedHours = (durationHours !== null) ? Math.max(1, durationHours) : null;
+        const exitTime = data.exit_time ? new Date(data.exit_time).toLocaleString() : null;
+        infoDiv.innerHTML = `
+            <div class="badge bg-dark mb-2">Vehicle: ${data.vehicle}</div>
+            <p class="text-muted small mb-0">Parked at Slot ${data.slot_label || data.slot_id}</p>
+            <p class="text-muted small">Since: ${new Date(data.entry_time).toLocaleString()}</p>
+            ${durationText ? `<p class="text-muted small mb-0">Parking duration: ${durationText}${durationMinutes !== null ? ` &middot; ${durationMinutes} minutes` : ``}${durationHours !== null ? ` &middot; ${durationHours.toFixed(2)} hours` : ``}</p>` : ``}
+            ${billedHours !== null ? `<p class="text-muted small mb-0">Billed time: ${billedHours.toFixed(2)} hours &middot; Rate: ₦200/hour (minimum 1 hour)</p>` : ``}
+            ${exitTime ? `<p class="text-muted small">Checkout time: ${exitTime}</p>` : ``}
+        `;
+
+        const payModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        payModal.show();
+    }
+</script>
+{% endblock %}
